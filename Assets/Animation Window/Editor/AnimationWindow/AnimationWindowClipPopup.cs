@@ -209,8 +209,8 @@ namespace UnityEditor.PlayEm {
 			}
 
 			#if UNITY_EDITOR_WIN
-			// So we don't break in windows even though it worked before
-			System.Array.Resize(ref clips, 1000);
+			// So we don't break in windows even though it worked before, only up to 999 because you need one more for New Clip
+			System.Array.Resize(ref clips, 999);
 			#endif
 
 			Array.Sort(clips, (AnimationClip clip1, AnimationClip clip2) => CurveUtility.GetClipName(clip1).CompareTo(CurveUtility.GetClipName(clip2)));
