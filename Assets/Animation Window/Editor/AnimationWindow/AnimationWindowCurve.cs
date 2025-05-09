@@ -9,273 +9,307 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Object = UnityEngine.Object;
 
-namespace UnityEditorInternal.PlayEm {
-	internal class AnimationWindowCurve : IComparable<AnimationWindowCurve>, IEquatable<AnimationWindowCurve> {
-		public const float timeEpsilon = 0.00001f;
+namespace UnityEditorInternal.PlayEm
+{
+    internal class AnimationWindowCurve : IComparable<AnimationWindowCurve>, IEquatable<AnimationWindowCurve>
+    {
+        public const float timeEpsilon = 0.00001f;
 
-		public List<AnimationWindowKeyframe> m_Keyframes;
+        public List<AnimationWindowKeyframe> m_Keyframes;
 
-		private EditorCurveBinding m_Binding;
-		private int m_BindingHashCode;
+        private EditorCurveBinding m_Binding;
+        private int m_BindingHashCode;
 
-		private AnimationClip m_Clip;
-		private AnimationWindowSelectionItem m_SelectionBinding;
+        private AnimationClip m_Clip;
+        private AnimationWindowSelectionItem m_SelectionBinding;
 
-		private System.Type m_ValueType;
+        private System.Type m_ValueType;
 
-		public EditorCurveBinding binding { get { return m_Binding; } }
-		public bool isPPtrCurve { get { return m_Binding.isPPtrCurve; } }
-		public bool isDiscreteCurve { get { return m_Binding.isDiscreteCurve; } }
-		public bool isPhantom { get { return m_Binding.isPhantom; } }
-		public string propertyName { get { return m_Binding.propertyName; } }
-		public string path { get { return m_Binding.path; } }
-		public System.Type type { get { return m_Binding.type; } }
-		public System.Type valueType { get { return m_ValueType; } }
-		public int length { get { return m_Keyframes.Count; } }
+        public EditorCurveBinding binding { get { return m_Binding;  } }
+        public bool isPPtrCurve { get { return m_Binding.isPPtrCurve; } }
+        public bool isDiscreteCurve { get { return m_Binding.isDiscreteCurve; } }
+        public bool isPhantom { get { return m_Binding.isPhantom; } }
+        public string propertyName { get { return m_Binding.propertyName; } }
+        public string path { get { return m_Binding.path; } }
+        public System.Type type { get { return m_Binding.type; } }
+        public System.Type valueType { get { return m_ValueType; } }
+        public int length { get { return m_Keyframes.Count; } }
 
-		public int depth { get { return path.Length > 0 ? path.Split('/').Length : 0; } }
+        public int depth { get { return path.Length > 0 ? path.Split('/').Length : 0; } }
 
-		public AnimationClip clip { get { return m_Clip; } }
+        public AnimationClip clip { get { return m_Clip; } }
 
-		public GameObject rootGameObject { get { return m_SelectionBinding != null ? m_SelectionBinding.rootGameObject : null; } }
-		public ScriptableObject scriptableObject { get { return m_SelectionBinding != null ? m_SelectionBinding.scriptableObject : null; } }
-		public bool clipIsEditable { get { return m_SelectionBinding != null ? m_SelectionBinding.clipIsEditable : true; } }
-		public bool animationIsEditable { get { return m_SelectionBinding != null ? m_SelectionBinding.animationIsEditable : true; } }
-		public int selectionID { get { return m_SelectionBinding != null ? m_SelectionBinding.id : 0; } }
+        public GameObject rootGameObject { get { return m_SelectionBinding != null ? m_SelectionBinding.rootGameObject : null; } }
+        public ScriptableObject scriptableObject { get { return m_SelectionBinding != null ? m_SelectionBinding.scriptableObject : null; } }
+        public bool clipIsEditable { get { return m_SelectionBinding != null ? m_SelectionBinding.clipIsEditable : true; } }
+        public bool animationIsEditable { get { return m_SelectionBinding != null ? m_SelectionBinding.animationIsEditable : true; } }
+        public int selectionID { get { return m_SelectionBinding != null ? m_SelectionBinding.id : 0; } }
 
-		public AnimationWindowSelectionItem selectionBinding { get { return m_SelectionBinding; } set { m_SelectionBinding = value; } }
+        public IReadOnlyList<AnimationWindowKeyframe> keyframes => m_Keyframes;
 
-		public AnimationWindowCurve(AnimationClip clip, EditorCurveBinding binding, System.Type valueType) {
-			binding = RotationCurveInterpolation.RemapAnimationBindingForRotationCurves(binding, clip);
+        public AnimationWindowSelectionItem selectionBinding { get { return m_SelectionBinding; } set { m_SelectionBinding = value; } }
 
-			m_Binding = binding;
-			m_BindingHashCode = binding.GetHashCode();
-			m_ValueType = valueType;
-			m_Clip = clip;
+        public AnimationWindowCurve(AnimationClip clip, EditorCurveBinding binding, System.Type valueType)
+        {
+            binding = RotationCurveInterpolation.RemapAnimationBindingForRotationCurves(binding, clip);
 
-			LoadKeyframes(clip);
-		}
+            m_Binding = binding;
+            m_BindingHashCode = binding.GetHashCode();
+            m_ValueType = valueType;
+            m_Clip = clip;
 
-		public void LoadKeyframes(AnimationCurve curve) {
-			if (curve == null)
-				return;
+            LoadKeyframes(clip);
+        }
 
-			for (int i = 0; i < curve.length; i++)
-				m_Keyframes.Add(new AnimationWindowKeyframe(this, curve[i]));
-		}
+        public void LoadKeyframes(AnimationCurve curve)
+        {
+            if (curve == null)
+                return;
 
-		public void LoadKeyframes(AnimationClip clip) {
-			m_Keyframes = new List<AnimationWindowKeyframe>();
+            for (int i = 0; i < curve.length; i++)
+                m_Keyframes.Add(new AnimationWindowKeyframe(this, curve[i]));
+        }
 
-			if (!m_Binding.isPPtrCurve) {
-				AnimationCurve curve = AnimationUtility.GetEditorCurve(clip, binding);
-				LoadKeyframes(curve);
-			}
-			else {
-				ObjectReferenceKeyframe[] curve = AnimationUtility.GetObjectReferenceCurve(clip, binding);
-				if (curve != null) {
-					for (int i = 0; i < curve.Length; i++)
-						m_Keyframes.Add(new AnimationWindowKeyframe(this, curve[i]));
-				}
-			}
-		}
+        public void LoadKeyframes(AnimationClip clip)
+        {
+            m_Keyframes = new List<AnimationWindowKeyframe>();
 
-		public override int GetHashCode() {
-			int clipID = (clip == null ? 0 : clip.GetInstanceID());
-			return unchecked(selectionID * 92821 ^ clipID * 19603 ^ GetBindingHashCode());
-		}
+            if (!m_Binding.isPPtrCurve)
+            {
+                AnimationCurve curve = AnimationUtility.GetEditorCurve(clip, binding);
+                LoadKeyframes(curve);
+            }
+            else
+            {
+                ObjectReferenceKeyframe[] curve = AnimationUtility.GetObjectReferenceCurve(clip, binding);
+                if (curve != null)
+                {
+                    for (int i = 0; i < curve.Length; i++)
+                        m_Keyframes.Add(new AnimationWindowKeyframe(this, curve[i]));
+                }
+            }
+        }
 
-		public int GetBindingHashCode() {
-			return m_BindingHashCode;
-		}
+        public override int GetHashCode()
+        {
+            int clipID = (clip == null ? 0 : clip.GetInstanceID());
+            return unchecked(selectionID * 92821 ^ clipID * 19603 ^ GetBindingHashCode());
+        }
 
-		public int CompareTo(AnimationWindowCurve obj) {
-			if (!path.Equals(obj.path)) {
-				return ComparePaths(obj.path);
-			}
+        public int GetBindingHashCode()
+        {
+            return m_BindingHashCode;
+        }
 
-			bool sameTransformComponent = type == typeof(Transform) && obj.type == typeof(Transform);
-			bool oneIsTransformComponent = (type == typeof(Transform) || obj.type == typeof(Transform));
+        public int CompareTo(AnimationWindowCurve obj)
+        {
+            if (!path.Equals(obj.path))
+            {
+                return ComparePaths(obj.path);
+            }
 
-			// We want to sort position before rotation
-			if (sameTransformComponent) {
-				string propertyGroupA = AnimationWindowUtility.GetNicePropertyGroupDisplayName(typeof(Transform), AnimationWindowUtility.GetPropertyGroupName(propertyName));
-				string propertyGroupB = AnimationWindowUtility.GetNicePropertyGroupDisplayName(typeof(Transform), AnimationWindowUtility.GetPropertyGroupName(obj.propertyName));
+            bool sameTransformComponent = type == typeof(Transform) && obj.type == typeof(Transform);
+            bool oneIsTransformComponent = (type == typeof(Transform) || obj.type == typeof(Transform));
 
-				if (propertyGroupA.Contains("Position") && propertyGroupB.Contains("Rotation"))
-					return -1;
-				if (propertyGroupA.Contains("Rotation") && propertyGroupB.Contains("Position"))
-					return 1;
-			}
-			// Transform component should always come first.
-			else if (oneIsTransformComponent) {
-				if (type == typeof(Transform))
-					return -1;
-				else
-					return 1;
-			}
+            // We want to sort position before rotation
+            if (sameTransformComponent)
+            {
+                string propertyGroupA = AnimationWindowUtility.GetPropertyGroupName(propertyName);
+                string propertyGroupB = AnimationWindowUtility.GetPropertyGroupName(obj.propertyName);
 
-			// Sort (.r, .g, .b, .a) and (.x, .y, .z, .w)
-			if (obj.type == type) {
-				int lhsIndex = AnimationWindowUtility.GetComponentIndex(obj.propertyName);
-				int rhsIndex = AnimationWindowUtility.GetComponentIndex(propertyName);
-				if (lhsIndex != -1 && rhsIndex != -1 && propertyName.Substring(0, propertyName.Length - 2) == obj.propertyName.Substring(0, obj.propertyName.Length - 2))
-					return rhsIndex - lhsIndex;
-			}
+                if (propertyGroupA.Equals("m_LocalPosition") && (propertyGroupB.Equals("m_LocalRotation") || propertyGroupB.StartsWith("localEulerAngles")))
+                    return -1;
+                if ((propertyGroupA.Equals("m_LocalRotation") || propertyGroupA.StartsWith("localEulerAngles")) && propertyGroupB.Equals("m_LocalPosition"))
+                    return 1;
+            }
+            // Transform component should always come first.
+            else if (oneIsTransformComponent)
+            {
+                if (type == typeof(Transform))
+                    return -1;
+                else
+                    return 1;
+            }
 
-			return string.Compare((path + type + propertyName), obj.path + obj.type + obj.propertyName, StringComparison.Ordinal);
-		}
+            // Sort (.r, .g, .b, .a) and (.x, .y, .z, .w)
+            if (obj.type == type)
+            {
+                int lhsIndex = AnimationWindowUtility.GetComponentIndex(obj.propertyName);
+                int rhsIndex = AnimationWindowUtility.GetComponentIndex(propertyName);
+                if (lhsIndex != -1 && rhsIndex != -1 && propertyName.Substring(0, propertyName.Length - 2) == obj.propertyName.Substring(0, obj.propertyName.Length - 2))
+                    return rhsIndex - lhsIndex;
+            }
 
-		public bool Equals(AnimationWindowCurve other) {
-			return CompareTo(other) == 0;
-		}
+            return string.Compare((path + type + propertyName), obj.path + obj.type + obj.propertyName, StringComparison.Ordinal);
+        }
 
-		int ComparePaths(string otherPath) {
-			var thisPath = path.Split('/');
-			var objPath = otherPath.Split('/');
+        public bool Equals(AnimationWindowCurve other)
+        {
+            return CompareTo(other) == 0;
+        }
 
-			int smallerLength = Math.Min(thisPath.Length, objPath.Length);
-			for (int i = 0; i < smallerLength; ++i) {
-				int compare = string.Compare(thisPath[i], objPath[i], StringComparison.Ordinal);
-				if (compare == 0) {
-					continue;
-				}
+        int ComparePaths(string otherPath)
+        {
+            var thisPath = path.Split('/');
+            var objPath = otherPath.Split('/');
 
-				return compare;
-			}
+            int smallerLength = Math.Min(thisPath.Length, objPath.Length);
+            for (int i = 0; i < smallerLength; ++i)
+            {
+                int compare = string.Compare(thisPath[i], objPath[i], StringComparison.Ordinal);
+                if (compare == 0)
+                {
+                    continue;
+                }
 
-			if (thisPath.Length < objPath.Length) {
-				return -1;
-			}
+                return compare;
+            }
 
-			return 1;
-		}
+            if (thisPath.Length < objPath.Length)
+            {
+                return -1;
+            }
 
-		public AnimationCurve ToAnimationCurve() {
-			int length = m_Keyframes.Count;
-			AnimationCurve animationCurve = new AnimationCurve();
-			List<Keyframe> keys = new List<Keyframe>();
+            return 1;
+        }
 
-			float lastFrameTime = float.MinValue;
+        public AnimationCurve ToAnimationCurve()
+        {
+            int length = m_Keyframes.Count;
+            AnimationCurve animationCurve = new AnimationCurve();
+            List<Keyframe> keys = new List<Keyframe>();
 
-			for (int i = 0; i < length; i++) {
-				// Make sure we don't get two keyframes in an exactly the same time. We just ignore those.
-				if (Mathf.Abs(m_Keyframes[i].time - lastFrameTime) > AnimationWindowCurve.timeEpsilon) {
-					Keyframe newKeyframe = m_Keyframes[i].ToKeyframe();
-					keys.Add(newKeyframe);
-					lastFrameTime = m_Keyframes[i].time;
-				}
-			}
+            for (int i = 0; i < length; i++)
+            {
+                Keyframe newKeyframe = m_Keyframes[i].ToKeyframe();
+                keys.Add(newKeyframe);
+            }
 
-			animationCurve.keys = keys.ToArray();
-			return animationCurve;
-		}
+            animationCurve.keys = keys.ToArray();
+            return animationCurve;
+        }
 
-		public ObjectReferenceKeyframe[] ToObjectCurve() {
-			int length = m_Keyframes.Count;
-			List<ObjectReferenceKeyframe> keys = new List<ObjectReferenceKeyframe>();
+        public ObjectReferenceKeyframe[] ToObjectCurve()
+        {
+            int length = m_Keyframes.Count;
+            List<ObjectReferenceKeyframe> keys = new List<ObjectReferenceKeyframe>();
 
-			float lastFrameTime = float.MinValue;
+            for (int i = 0; i < length; i++)
+            {
+                ObjectReferenceKeyframe newKeyframe = m_Keyframes[i].ToObjectReferenceKeyframe();
+                keys.Add(newKeyframe);
+            }
 
-			for (int i = 0; i < length; i++) {
-				// Make sure we don't get two keyframes in an exactly the same time. We just ignore those.
-				if (Mathf.Abs(m_Keyframes[i].time - lastFrameTime) > AnimationWindowCurve.timeEpsilon) {
-					ObjectReferenceKeyframe newKeyframe = m_Keyframes[i].ToObjectReferenceKeyframe();
-					lastFrameTime = newKeyframe.time;
-					keys.Add(newKeyframe);
-				}
-			}
+            keys.Sort((a, b) => a.time.CompareTo(b.time));
+            return keys.ToArray();
+        }
 
-			keys.Sort((a, b) => a.time.CompareTo(b.time));
-			return keys.ToArray();
-		}
+        public AnimationWindowKeyframe FindKeyAtTime(AnimationKeyTime keyTime)
+        {
+            int index = GetKeyframeIndex(keyTime);
+            if (index == -1)
+                return null;
 
-		public AnimationWindowKeyframe FindKeyAtTime(AnimationKeyTime keyTime) {
-			int index = GetKeyframeIndex(keyTime);
-			if (index == -1)
-				return null;
+            return m_Keyframes[index];
+        }
 
-			return m_Keyframes[index];
-		}
+        public object Evaluate(float time)
+        {
+            if (m_Keyframes.Count == 0)
+                return isPPtrCurve ? null : (object)0f;
 
-		public object Evaluate(float time) {
-			if (m_Keyframes.Count == 0)
-				return isPPtrCurve ? null : (object) 0f;
+            AnimationWindowKeyframe firstKey = m_Keyframes[0];
+            if (time <= firstKey.time)
+                return firstKey.value;
 
-			AnimationWindowKeyframe firstKey = m_Keyframes[0];
-			if (time <= firstKey.time)
-				return firstKey.value;
+            AnimationWindowKeyframe lastKey = m_Keyframes[m_Keyframes.Count - 1];
+            if (time >= lastKey.time)
+                return lastKey.value;
 
-			AnimationWindowKeyframe lastKey = m_Keyframes[m_Keyframes.Count - 1];
-			if (time >= lastKey.time)
-				return lastKey.value;
+            AnimationWindowKeyframe key = firstKey;
+            for (int i = 1; i < m_Keyframes.Count; ++i)
+            {
+                AnimationWindowKeyframe nextKey = m_Keyframes[i];
 
-			AnimationWindowKeyframe key = firstKey;
-			for (int i = 1; i < m_Keyframes.Count; ++i) {
-				AnimationWindowKeyframe nextKey = m_Keyframes[i];
+                if (key.time < time && nextKey.time >= time)
+                {
+                    if (isPPtrCurve)
+                    {
+                        return key.value;
+                    }
+                    else
+                    {
+                        //  Create an animation curve stub and evaluate.
+                        Keyframe keyframe = key.ToKeyframe();
+                        Keyframe nextKeyframe = nextKey.ToKeyframe();
 
-				if (key.time < time && nextKey.time >= time) {
-					if (isPPtrCurve) {
-						return key.value;
-					}
-					else {
-						//  Create an animation curve stub and evaluate.
-						Keyframe keyframe = key.ToKeyframe();
-						Keyframe nextKeyframe = nextKey.ToKeyframe();
+                        AnimationCurve animationCurve = new AnimationCurve();
+                        animationCurve.keys = new Keyframe[2] { keyframe, nextKeyframe };
 
-						AnimationCurve animationCurve = new AnimationCurve();
-						animationCurve.keys = new Keyframe[2] { keyframe, nextKeyframe };
+                        return animationCurve.Evaluate(time);
+                    }
+                }
 
-						return animationCurve.Evaluate(time);
-					}
-				}
+                key = nextKey;
+            }
 
-				key = nextKey;
-			}
+            // Shouldn't happen...
+            return isPPtrCurve ? null : (object)0f;
+        }
 
-			// Shouldn't happen...
-			return isPPtrCurve ? null : (object) 0f;
-		}
+        public void AddKeyframe(AnimationWindowKeyframe key, AnimationKeyTime keyTime)
+        {
+            // If there is already key in this time, we always want to remove it
+            RemoveKeyframe(keyTime);
 
-		public void AddKeyframe(AnimationWindowKeyframe key, AnimationKeyTime keyTime) {
-			// If there is already key in this time, we always want to remove it
-			RemoveKeyframe(keyTime);
+            m_Keyframes.Add(key);
+            m_Keyframes.Sort((a, b) => a.time.CompareTo(b.time));
+        }
 
-			m_Keyframes.Add(key);
-			m_Keyframes.Sort((a, b) => a.time.CompareTo(b.time));
-		}
+        public void RemoveKeyframe(AnimationKeyTime time)
+        {
+            // Loop backwards so key removals don't mess up order
+            for (int i = m_Keyframes.Count - 1; i >= 0; i--)
+            {
+                if (time.ContainsTime(m_Keyframes[i].time))
+                    m_Keyframes.RemoveAt(i);
+            }
+        }
 
-		public void RemoveKeyframe(AnimationKeyTime time) {
-			// Loop backwards so key removals don't mess up order
-			for (int i = m_Keyframes.Count - 1; i >= 0; i--) {
-				if (time.ContainsTime(m_Keyframes[i].time))
-					m_Keyframes.RemoveAt(i);
-			}
-		}
+        public void RemoveKeyframe(AnimationWindowKeyframe keyframe)
+        {
+            m_Keyframes.Remove(keyframe);
+        }
 
-		public bool HasKeyframe(AnimationKeyTime time) {
-			return GetKeyframeIndex(time) != -1;
-		}
+        public bool HasKeyframe(AnimationKeyTime time)
+        {
+            return GetKeyframeIndex(time) != -1;
+        }
 
-		public int GetKeyframeIndex(AnimationKeyTime time) {
-			for (int i = 0; i < m_Keyframes.Count; i++) {
-				if (time.ContainsTime(m_Keyframes[i].time))
-					return i;
-			}
-			return -1;
-		}
+        public int GetKeyframeIndex(AnimationKeyTime time)
+        {
+            for (int i = 0; i < m_Keyframes.Count; i++)
+            {
+                if (time.ContainsTime(m_Keyframes[i].time))
+                    return i;
+            }
+            return -1;
+        }
 
-		// Remove keys at range. Start time is exclusive and end time inclusive.
-		public void RemoveKeysAtRange(float startTime, float endTime) {
-			for (int i = m_Keyframes.Count - 1; i >= 0; i--) {
-				if (Mathf.Approximately(endTime, m_Keyframes[i].time) ||
-					m_Keyframes[i].time > startTime && m_Keyframes[i].time < endTime)
-					m_Keyframes.RemoveAt(i);
-			}
-		}
+        // Remove keys at range. Start time is exclusive and end time inclusive.
+        public void RemoveKeysAtRange(float startTime, float endTime)
+        {
+            for (int i = m_Keyframes.Count - 1; i >= 0; i--)
+            {
+                if (Mathf.Approximately(endTime, m_Keyframes[i].time) ||
+                    m_Keyframes[i].time > startTime && m_Keyframes[i].time < endTime)
+                    m_Keyframes.RemoveAt(i);
+            }
+        }
 
-		public void Clear() {
-			m_Keyframes.Clear();
-		}
-	}
+        public void Clear()
+        {
+            m_Keyframes.Clear();
+        }
+    }
 }

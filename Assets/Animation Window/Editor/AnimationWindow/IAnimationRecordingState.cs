@@ -9,18 +9,20 @@ using System.Text;
 using UnityEngine;
 using UnityEditor;
 
-namespace UnityEditorInternal.PlayEm {
-	// Required information for animation recording.
-	internal interface IAnimationRecordingState {
-		GameObject activeGameObject { get; }
-		GameObject activeRootGameObject { get; }
-		AnimationClip activeAnimationClip { get; }
-		int currentFrame { get; }
+namespace UnityEditorInternal.PlayEm
+{
+    // Required information for animation recording.
+    internal interface IAnimationRecordingState
+    {
+        GameObject activeGameObject { get; }
+        GameObject activeRootGameObject { get; }
+        AnimationClip activeAnimationClip { get; }
+        int currentFrame { get; }
 
-		bool addZeroFrame { get; }
+        bool addZeroFrame { get; }
 
-		bool DiscardModification(PropertyModification modification);
-		void SaveCurve(AnimationWindowCurve curve);
-		void AddPropertyModification(EditorCurveBinding binding, PropertyModification propertyModification, bool keepPrefabOverride);
-	}
+        bool DiscardModification(PropertyModification modification);
+        void SaveCurve(AnimationWindowCurve curve);
+        void AddPropertyModification(EditorCurveBinding binding, PropertyModification propertyModification, bool keepPrefabOverride);
+    }
 }

@@ -11,84 +11,129 @@ using System.Collections.Generic;
 using System.Reflection;
 using Object = UnityEngine.Object;
 
-namespace UnityEditor.PlayEm {
-	internal struct AnimationWindowEventMethod {
-		public string name;
-		public Type parameterType;
-	}
+namespace UnityEditor.PlayEm
+{
+    /// <summary>
+    /// Holds the context for AnimationEvent editing.
+    /// </summary>
+    class AnimationEventEditorState
+    {
+        static bool s_ShowOverloadedFunctionsDetails = true;
+        static bool s_ShowDuplicatedFunctionsDetails = true;
 
-	internal class AnimationWindowEvent : ScriptableObject {
-		public GameObject root;
-		public AnimationClip clip;
-		public AnimationClipInfoProperties clipInfo;
-		public int eventIndex;
+        bool m_ShowOverloadedFunctionsDetails = s_ShowOverloadedFunctionsDetails;
+        bool m_ShowDuplicatedFunctionsDetails = s_ShowDuplicatedFunctionsDetails;
 
-		static public AnimationWindowEvent CreateAndEdit(GameObject root, AnimationClip clip, float time) {
-			AnimationEvent animationEvent = new AnimationEvent();
-			animationEvent.time = time;
+        /// <summary>
+        /// Used to track whether or not to show extra details about duplicated function names found in among the potential supported functions
+        /// </summary>
+        public bool ShowOverloadedFunctionsDetails
+        {
+            get => m_ShowOverloadedFunctionsDetails;
+            set
+            {
+                m_ShowOverloadedFunctionsDetails = s_ShowOverloadedFunctionsDetails = value;
+            }
+        }
 
-			// Or add a new one
-			AnimationEvent[] events = AnimationUtility.GetAnimationEvents(clip);
-			int eventIndex = InsertAnimationEvent(ref events, clip, animationEvent);
+        /// <summary>
+        /// Used to track whether or not to show extra details about overloaded function names found in among the potential supported functions
+        /// </summary>
+        public bool ShowDuplicatedFunctionsDetails
+        {
+            get => m_ShowDuplicatedFunctionsDetails;
+            set
+            {
+                m_ShowDuplicatedFunctionsDetails = s_ShowDuplicatedFunctionsDetails = value;
+            }
+        }
 
-			AnimationWindowEvent animationWindowEvent = CreateInstance<AnimationWindowEvent>();
-			animationWindowEvent.hideFlags = HideFlags.HideInHierarchy;
-			animationWindowEvent.name = "Animation Event";
+        public AnimationEventEditorState()
+        {
+            m_ShowOverloadedFunctionsDetails = s_ShowOverloadedFunctionsDetails;
+            m_ShowDuplicatedFunctionsDetails = s_ShowDuplicatedFunctionsDetails;
+        }
+    }
 
-			animationWindowEvent.root = root;
-			animationWindowEvent.clip = clip;
-			animationWindowEvent.clipInfo = null;
-			animationWindowEvent.eventIndex = eventIndex;
+    internal class AnimationWindowEvent : ScriptableObject
+    {
+        public GameObject root;
+        public AnimationClip clip;
+        public AnimationClipInfoProperties clipInfo;
+        public int eventIndex;
 
-			return animationWindowEvent;
-		}
+        static public AnimationWindowEvent CreateAndEdit(GameObject root, AnimationClip clip, float time)
+        {
+            AnimationEvent animationEvent = new AnimationEvent();
+            animationEvent.time = time;
 
-		static public AnimationWindowEvent Edit(GameObject root, AnimationClip clip, int eventIndex) {
-			AnimationWindowEvent animationWindowEvent = CreateInstance<AnimationWindowEvent>();
-			animationWindowEvent.hideFlags = HideFlags.HideInHierarchy;
-			animationWindowEvent.name = "Animation Event";
+            // Or add a new one
+            AnimationEvent[] events = AnimationUtility.GetAnimationEvents(clip);
+            int eventIndex = InsertAnimationEvent(ref events, clip, animationEvent);
 
-			animationWindowEvent.root = root;
-			animationWindowEvent.clip = clip;
-			animationWindowEvent.clipInfo = null;
-			animationWindowEvent.eventIndex = eventIndex;
+            AnimationWindowEvent animationWindowEvent = CreateInstance<AnimationWindowEvent>();
+            animationWindowEvent.hideFlags = HideFlags.HideInHierarchy;
+            animationWindowEvent.name = "Animation Event";
 
-			return animationWindowEvent;
-		}
+            animationWindowEvent.root = root;
+            animationWindowEvent.clip = clip;
+            animationWindowEvent.clipInfo = null;
+            animationWindowEvent.eventIndex = eventIndex;
 
-		static public AnimationWindowEvent Edit(AnimationClipInfoProperties clipInfo, int eventIndex) {
-			AnimationWindowEvent animationWindowEvent = CreateInstance<AnimationWindowEvent>();
-			animationWindowEvent.hideFlags = HideFlags.HideInHierarchy;
-			animationWindowEvent.name = "Animation Event";
+            return animationWindowEvent;
+        }
 
-			animationWindowEvent.root = null;
-			animationWindowEvent.clip = null;
-			animationWindowEvent.clipInfo = clipInfo;
-			animationWindowEvent.eventIndex = eventIndex;
+        static public AnimationWindowEvent Edit(GameObject root, AnimationClip clip, int eventIndex)
+        {
+            AnimationWindowEvent animationWindowEvent = CreateInstance<AnimationWindowEvent>();
+            animationWindowEvent.hideFlags = HideFlags.HideInHierarchy;
+            animationWindowEvent.name = "Animation Event";
 
-			return animationWindowEvent;
-		}
+            animationWindowEvent.root = root;
+            animationWindowEvent.clip = clip;
+            animationWindowEvent.clipInfo = null;
+            animationWindowEvent.eventIndex = eventIndex;
 
-		static private int InsertAnimationEvent(ref AnimationEvent[] events, AnimationClip clip, AnimationEvent evt) {
-			Undo.RegisterCompleteObjectUndo(clip, "Add Event");
+            return animationWindowEvent;
+        }
 
-			// Or add a new one
-			int insertIndex = events.Length;
-			for (int i = 0; i < events.Length; i++) {
-				if (events[i].time > evt.time) {
-					insertIndex = i;
-					break;
-				}
-			}
+        static public AnimationWindowEvent Edit(AnimationClipInfoProperties clipInfo, int eventIndex)
+        {
+            AnimationWindowEvent animationWindowEvent = CreateInstance<AnimationWindowEvent>();
+            animationWindowEvent.hideFlags = HideFlags.HideInHierarchy;
+            animationWindowEvent.name = "Animation Event";
 
-			ArrayUtility.Insert(ref events, insertIndex, evt);
-			AnimationUtility.SetAnimationEvents(clip, events);
+            animationWindowEvent.root = null;
+            animationWindowEvent.clip = null;
+            animationWindowEvent.clipInfo = clipInfo;
+            animationWindowEvent.eventIndex = eventIndex;
 
-			events = AnimationUtility.GetAnimationEvents(clip);
-			if (events[insertIndex].time != evt.time || events[insertIndex].functionName != evt.functionName)
-				Debug.LogError("Failed insertion");
+            return animationWindowEvent;
+        }
 
-			return insertIndex;
-		}
-	}
+        static private int InsertAnimationEvent(ref AnimationEvent[] events, AnimationClip clip, AnimationEvent evt)
+        {
+            Undo.RegisterCompleteObjectUndo(clip, "Add Event");
+
+            // Or add a new one
+            int insertIndex = events.Length;
+            for (int i = 0; i < events.Length; i++)
+            {
+                if (events[i].time > evt.time)
+                {
+                    insertIndex = i;
+                    break;
+                }
+            }
+
+            ArrayUtility.Insert(ref events, insertIndex, evt);
+            AnimationUtility.SetAnimationEvents(clip, events);
+
+            events = AnimationUtility.GetAnimationEvents(clip);
+            if (events[insertIndex].time != evt.time || events[insertIndex].functionName != evt.functionName)
+                Debug.LogError("Failed insertion");
+
+            return insertIndex;
+        }
+    }
 }

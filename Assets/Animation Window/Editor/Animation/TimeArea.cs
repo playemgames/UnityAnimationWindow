@@ -44,12 +44,11 @@ namespace UnityEditor.PlayEm
             None, // Unformatted time
             TimeFrame, // Time:Frame
             Frame // Integer frame
-        };
+        }
 
         class Styles2
         {
             public GUIStyle timelineTick = "AnimationTimelineTick";
-            public GUIStyle labelTickMarks = "CurveEditorLabelTickMarks";
             public GUIStyle playhead = "AnimationPlayHead";
         }
 
@@ -103,7 +102,10 @@ namespace UnityEditor.PlayEm
             Color tickColor = timeAreaStyles.timelineTick.normal.textColor;
             tickColor.a = 0.1f;
 
-            GL.Begin(GL.LINES);
+            if (Application.platform == RuntimePlatform.WindowsEditor)
+                GL.Begin(GL.QUADS);
+            else
+                GL.Begin(GL.LINES);
 
             // Draw tick markers of various sizes
             Rect theShowArea = shownArea;
@@ -153,7 +155,10 @@ namespace UnityEditor.PlayEm
 
             if (Event.current.type == EventType.Repaint)
             {
-                GL.Begin(GL.LINES);
+                if (Application.platform == RuntimePlatform.WindowsEditor)
+                    GL.Begin(GL.QUADS);
+                else
+                    GL.Begin(GL.LINES);
 
                 // Draw tick markers of various sizes
 
@@ -235,20 +240,32 @@ namespace UnityEditor.PlayEm
             Color backupCol = Handles.color;
 
             HandleUtility.ApplyWireMaterial();
-            GL.Begin(GL.LINES);
+            if (Application.platform == RuntimePlatform.WindowsEditor)
+                GL.Begin(GL.QUADS);
+            else
+                GL.Begin(GL.LINES);
             DrawVerticalLineFast(x, minY, maxY, color);
             GL.End();
 
             Handles.color = backupCol;
         }
 
-        public static void DrawVerticalLineFast(float x, float minY, float maxY, Color color) {
-            GL.Color(color);
-            if (Application.platform == RuntimePlatform.WindowsEditor) {
-                x = ((int) x) +0.5f;
+        public static void DrawVerticalLineFast(float x, float minY, float maxY, Color color)
+        {
+            if (Application.platform == RuntimePlatform.WindowsEditor)
+            {
+                GL.Color(color);
+                GL.Vertex(new Vector3(x - 0.5f, minY, 0));
+                GL.Vertex(new Vector3(x + 0.5f, minY, 0));
+                GL.Vertex(new Vector3(x + 0.5f, maxY, 0));
+                GL.Vertex(new Vector3(x - 0.5f, maxY, 0));
             }
-            GL.Vertex(new Vector3(x, minY, 0));
-            GL.Vertex(new Vector3(x, maxY, 0));
+            else
+            {
+                GL.Color(color);
+                GL.Vertex(new Vector3(x, minY, 0));
+                GL.Vertex(new Vector3(x, maxY, 0));
+            }
         }
 
         public enum TimeRulerDragMode
@@ -483,7 +500,7 @@ namespace UnityEditor.PlayEm
                     sign = "-";
                     frame = -frame;
                 }
-                return sign + (frame / (int)frameRate).ToString() + ":" +
+                return sign + (frame / (int)frameRate) + ":" +
                     (frame % frameRate).ToString().PadLeft(frameDigits, '0');
             }
             else

@@ -8,25 +8,28 @@ using UnityEditor;
 
 using Object = UnityEngine.Object;
 
-namespace UnityEditorInternal.PlayEm {
-	internal class AnimationClipSelectionItem : AnimationWindowSelectionItem {
-		public static AnimationClipSelectionItem Create(AnimationClip animationClip, Object sourceObject) {
-			AnimationClipSelectionItem selectionItem = CreateInstance(typeof(AnimationClipSelectionItem)) as AnimationClipSelectionItem;
+namespace UnityEditorInternal.PlayEm
+{
+    internal class AnimationClipSelectionItem : AnimationWindowSelectionItem
+    {
+        public static AnimationClipSelectionItem Create(AnimationClip animationClip, Object sourceObject)
+        {
+            AnimationClipSelectionItem selectionItem = CreateInstance(typeof(AnimationClipSelectionItem)) as AnimationClipSelectionItem;
 
-			selectionItem.gameObject = sourceObject as GameObject;
-			selectionItem.scriptableObject = sourceObject as ScriptableObject;
-			selectionItem.animationClip = animationClip;
-			selectionItem.id = 0; // no need for id since there's only one item in selection.
+            selectionItem.gameObject = sourceObject as GameObject;
+            selectionItem.scriptableObject = sourceObject as ScriptableObject;
+            selectionItem.animationClip = animationClip;
+            selectionItem.id = 0; // no need for id since there's only one item in selection.
 
-			return selectionItem;
-		}
+            return selectionItem;
+        }
 
-		public override bool canPreview { get { return false; } }
+        public override bool canPreview { get { return false; } }
 
-		public override bool canRecord { get { return false; } }
+        public override bool canRecord { get { return false; } }
 
-		public override bool canChangeAnimationClip { get { return false; } }
+        public override bool canChangeAnimationClip { get { return false; } }
 
-		public override bool canSyncSceneSelection { get { return false; } }
-	}
+        public override bool canSyncSceneSelection { get { return false; } }
+    }
 }

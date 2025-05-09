@@ -1,5 +1,5 @@
 # UnityAnimationWindow
-Adding functionality and fixes to the Unity Animation Window, needs Unity 2019.3.9 and above to function correctly
+Adding functionality and fixes to the Unity Animation Window, needs Unity 2021.3.45 and above to function correctly
 
 Derived from: https://github.com/forestrf/UnityAnimationWindow
 
