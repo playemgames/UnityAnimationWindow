@@ -36,6 +36,7 @@ namespace UnityEditor.PlayEm
 
         private bool m_MustResample = true;
         private bool m_MustSampleMotions = false;
+        private bool m_MustResetParameterInfoList = false;
         public bool mustResample { set { m_MustResample = value; } get { return m_MustResample; } }
         private float m_LastEvalTime = -1.0f;
         private bool m_IsResampling = false;
@@ -112,7 +113,7 @@ namespace UnityEditor.PlayEm
                     Init();
                 }
             }
-        };
+        }
 
 
         private void CopyStateForPreview(AnimatorState src, ref AnimatorState dst)
@@ -268,7 +269,7 @@ namespace UnityEditor.PlayEm
             AnimatorStateInfo currentState = m_AvatarPreview.Animator.GetCurrentAnimatorStateInfo(m_LayerIndex);
             m_LeftStateWeightA = currentState.normalizedTime;
             m_LeftStateTimeA = currentTime;
-            while (!hasFinished && currentTime < maxDuration)
+            while (!hasFinished)
             {
                 m_AvatarPreview.Animator.Update(stepTime);
 
@@ -302,7 +303,7 @@ namespace UnityEditor.PlayEm
                     m_LeftStateTimeB = currentTime;
                 }
 
-                if (hasTransitioned)
+                if (hasTransitioned || hasFinished)
                 {
                     m_RightStateWeightB = currentState.normalizedTime;
                     m_RightStateTimeB = currentTime;
@@ -327,6 +328,11 @@ namespace UnityEditor.PlayEm
 
             float leftDuration =  (m_LeftStateTimeB - m_LeftStateTimeA) / (m_LeftStateWeightB - m_LeftStateWeightA);
             float rightDuration = (m_RightStateTimeB - m_RightStateTimeA) / (m_RightStateWeightB - m_RightStateWeightA);
+
+            // Ensure step times make sense based on these timings
+            // If step time is too small, the samping will take too long
+            currentStateStepTime = Mathf.Max(currentStateStepTime, leftDuration / 600.0f);
+            nextStateStepTime = Mathf.Max(nextStateStepTime, rightDuration / 600.0f);
 
             if (m_MustSampleMotions)
             {
@@ -398,6 +404,8 @@ namespace UnityEditor.PlayEm
         public void SetTransition(AnimatorStateTransition transition, AnimatorState sourceState, AnimatorState destinationState, AnimatorControllerLayer srcLayer, Animator previewObject)
         {
             m_RefSrcState = sourceState;
+            m_MustResetParameterInfoList = m_RefDstState != destinationState;
+
             m_RefDstState = destinationState;
             TransitionInfo info = new TransitionInfo();
             info.Set(transition, sourceState, destinationState);
@@ -557,11 +565,7 @@ namespace UnityEditor.PlayEm
 
         private void DisableIKOnFeetIfNeeded()
         {
-            bool disable = false;
-            if (m_SrcMotion == null || m_DstMotion == null)
-            {
-                disable = true;
-            }
+            bool disable = m_SrcMotion == null || m_DstMotion == null;
 
             if (m_LayerIndex > 0)
             {
@@ -593,19 +597,18 @@ namespace UnityEditor.PlayEm
 
             CreateController();
 
-            if (m_ParameterInfoList == null)
+            if(m_ParameterInfoList == null || m_MustResetParameterInfoList)
             {
+                m_MustResetParameterInfoList = false;
                 CreateParameterInfoList();
             }
+
         }
 
         public void DoTransitionPreview()
         {
             if (m_Controller == null)
                 return;
-
-            if (Event.current.type == EventType.Repaint)
-                m_AvatarPreview.timeControl.Update();
 
             DoTimeline();
 
@@ -725,7 +728,12 @@ namespace UnityEditor.PlayEm
         {
             if (m_AvatarPreview != null && m_Controller != null)
             {
-                if (m_LastEvalTime != m_AvatarPreview.timeControl.currentTime && Event.current.type == EventType.Repaint)
+                bool isRepaint = (Event.current.type == EventType.Repaint);
+
+                if (isRepaint)
+                    m_AvatarPreview.timeControl.Update();
+
+                if (m_LastEvalTime != m_AvatarPreview.timeControl.currentTime && isRepaint)
                 {
                     m_AvatarPreview.Animator.playbackTime = m_AvatarPreview.timeControl.currentTime;
                     m_AvatarPreview.Animator.Update(0);

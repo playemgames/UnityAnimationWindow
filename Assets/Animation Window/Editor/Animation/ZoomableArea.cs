@@ -4,7 +4,6 @@
 
 using UnityEngine;
 using UnityEditor;
-using System.Collections;
 
 namespace UnityEditor.PlayEm
 {
@@ -87,8 +86,26 @@ namespace UnityEditor.PlayEm
         private float m_VScaleMin = kMinScale;
         private float m_VScaleMax = kMaxScale;
 
-        private const float kMinWidth = 0.05f;
+        private float m_MinWidth = 0.05f;
         private const float kMinHeight = 0.05f;
+
+        private const float k_ScrollStepSize = 10f; // mirrors GUI scrollstepsize as there is no global const for this.
+
+        public float minWidth
+        {
+            get { return m_MinWidth; }
+            set
+            {
+                if (value > 0)
+                    m_MinWidth = value;
+                else
+                {
+                    Debug.LogWarning("Zoomable area width cannot have a value of " +
+                        "or below 0. Reverting back to a default value of 0.05f");
+                    m_MinWidth = 0.05f;
+                }
+            }
+        }
 
         public float hScaleMin
         {
@@ -195,7 +212,8 @@ namespace UnityEditor.PlayEm
         public float vSliderWidth { get { return vSlider ? styles.sliderWidth : 0f; } }
         public float hSliderHeight { get { return hSlider ? styles.sliderWidth : 0f; } }
 
-        // IDs for scrollbars
+        // IDs for controls
+        internal int areaControlID;
         int verticalScrollbarID, horizontalScrollbarID;
 
         [SerializeField] bool m_MinimalGUI;
@@ -353,10 +371,10 @@ namespace UnityEditor.PlayEm
         public void SetShownHRangeInsideMargins(float min, float max)
         {
             float widthInsideMargins = drawRect.width - leftmargin - rightmargin;
-            if (widthInsideMargins < kMinWidth) widthInsideMargins = kMinWidth;
+            if (widthInsideMargins < m_MinWidth) widthInsideMargins = m_MinWidth;
 
             float denum = max - min;
-            if (denum < kMinWidth) denum = kMinWidth;
+            if (denum < m_MinWidth) denum = m_MinWidth;
 
             m_Scale.x = widthInsideMargins / denum;
 
@@ -367,7 +385,7 @@ namespace UnityEditor.PlayEm
         public void SetShownHRange(float min, float max)
         {
             float denum = max - min;
-            if (denum < kMinWidth) denum = kMinWidth;
+            if (denum < m_MinWidth) denum = m_MinWidth;
 
             m_Scale.x = drawRect.width / denum;
 
@@ -419,7 +437,7 @@ namespace UnityEditor.PlayEm
         {
             set
             {
-                float width = (value.width < kMinWidth) ? kMinWidth : value.width;
+                float width = (value.width < m_MinWidth) ? m_MinWidth : value.width;
                 float height = (value.height < kMinHeight) ? kMinHeight : value.height;
 
                 if (m_UpDirection == YDirection.Positive)
@@ -478,11 +496,11 @@ namespace UnityEditor.PlayEm
         {
             set
             {
-                float width = (value.width < kMinWidth) ? kMinWidth : value.width;
+                float width = (value.width < m_MinWidth) ? m_MinWidth : value.width;
                 float height = (value.height < kMinHeight) ? kMinHeight : value.height;
 
                 float widthInsideMargins = drawRect.width - leftmargin - rightmargin;
-                if (widthInsideMargins < kMinWidth) widthInsideMargins = kMinWidth;
+                if (widthInsideMargins < m_MinWidth) widthInsideMargins = m_MinWidth;
 
                 float heightInsideMargins = drawRect.height - topmargin - bottommargin;
                 if (heightInsideMargins < kMinHeight) heightInsideMargins = kMinHeight;
@@ -520,9 +538,9 @@ namespace UnityEditor.PlayEm
 
         float GetWidthInsideMargins(float widthWithMargins, bool substractSliderWidth = false)
         {
-            float width = (widthWithMargins < kMinWidth) ? kMinWidth : widthWithMargins;
+            float width = (widthWithMargins < m_MinWidth) ? m_MinWidth : widthWithMargins;
             float widthInsideMargins = width - leftmargin - rightmargin - (substractSliderWidth ? (m_VSlider ? styles.visualSliderWidth : 0) : 0);
-            return Mathf.Max(widthInsideMargins, kMinWidth);
+            return Mathf.Max(widthInsideMargins, m_MinWidth);
         }
 
         float GetHeightInsideMargins(float heightWithMargins, bool substractSliderHeight = false)
@@ -647,6 +665,7 @@ namespace UnityEditor.PlayEm
             area.x = 0;
             area.y = 0;
             int id = GUIUtility.GetControlID(zoomableAreaHash, FocusType.Passive, area);
+            areaControlID = id;
 
             switch (Event.current.GetTypeForControl(id))
             {
@@ -696,7 +715,11 @@ namespace UnityEditor.PlayEm
                     break;
                 case EventType.ScrollWheel:
                     if (!area.Contains(Event.current.mousePosition))
+                    {
+                        HandleScrolling(area);
                         break;
+                    }
+
                     if (m_IgnoreScrollWheelUntilClicked && GUIUtility.keyboardControl != id)
                         break;
 
@@ -707,6 +730,24 @@ namespace UnityEditor.PlayEm
             }
 
             GUILayout.EndArea();
+        }
+
+        void HandleScrolling(Rect area)
+        {
+            if (m_MinimalGUI)
+                return;
+            if (m_VSlider && new Rect(area.x + area.width, area.y + GUI.skin.verticalScrollbarUpButton.fixedHeight, vSliderWidth, area.height - (GUI.skin.verticalScrollbarDownButton.fixedHeight + hSliderHeight)).Contains(Event.current.mousePosition))
+            {
+                SetTransform(new Vector2(m_Translation.x, m_Translation.y - (Event.current.delta.y * k_ScrollStepSize)), m_Scale);
+                Event.current.Use();
+                return;
+            }
+
+            if (m_HSlider && new Rect(area.x + GUI.skin.horizontalScrollbarLeftButton.fixedWidth, area.y + area.height, area.width - (GUI.skin.horizontalScrollbarRightButton.fixedWidth + vSliderWidth), hSliderHeight).Contains(Event.current.mousePosition))
+            {
+                SetTransform(new Vector2(m_Translation.x + (Event.current.delta.y * k_ScrollStepSize), m_Translation.y), m_Scale);
+                Event.current.Use();
+            }
         }
 
         public void EndViewGUI()
@@ -867,7 +908,7 @@ namespace UnityEditor.PlayEm
 
             // Cap scale when at min width to not "glide" away when zooming closer
             float width = shownAreaInsideMargins.width;
-            if (width / scale <= kMinWidth)
+            if (width / scale <= m_MinWidth)
                 return;
 
             SetScaleFocused(zoomAround, scale * m_Scale, Event.current.shift, EditorGUI.actionKey);
@@ -947,7 +988,7 @@ namespace UnityEditor.PlayEm
                     {
                         // range only has an influence if it is enforced, i.e. not infinity
                         float denum = hRangeMax - hRangeMin;
-                        if (denum < kMinWidth) denum = kMinWidth;
+                        if (denum < m_MinWidth) denum = m_MinWidth;
 
                         constrainedWidth = Mathf.Min(constrainedWidth, denum);
                     }
